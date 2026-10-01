@@ -6,10 +6,8 @@
     <title>ESCOLINHA DO PAPAI - Gerador de Provas com IA</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- FontAwesome Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://unpkg.com/lucide@0.460.0/dist/umd/lucide.min.js"></script>
     <!-- Google Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
     
@@ -92,7 +90,7 @@
                 <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
                     <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
                         <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
-                            <i data-lucide="sliders" class="w-5 h-5 text-indigo-600"></i>
+                            <i data-lucide="sliders-horizontal" class="w-5 h-5 text-indigo-600"></i>
                             Parâmetros da Prova
                         </h2>
                         <span class="text-xs bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1 rounded-full">Passo 1</span>
@@ -278,7 +276,7 @@
             </div>
 
             <p class="text-sm text-slate-600 mb-4 leading-relaxed">
-                Insira abaixo a sua Chave API do Google Gemini. Caso não informe uma chave, a aplicação utilizará a chave embutida do ambiente.
+                Insira abaixo a sua Chave API do Google Gemini. A chave é obrigatória para gerar provas e fica salva somente neste navegador (se você marcar "Lembrar").
             </p>
 
             <div class="space-y-4">
@@ -315,436 +313,431 @@
     </div>
 
     <script>
-        // Storage configuration
         const API_KEY_STORAGE = 'escolinha_papai_gemini_key';
+        const $ = (id) => document.getElementById(id);
+        const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+        const fmt = (n) => Number(n).toLocaleString('pt-BR', { maximumFractionDigits: 2 });
+        const icons = () => { if (window.lucide) lucide.createIcons(); };
 
-        // Initialize Lucide Icons
+        // Escapa texto antes de inserir em innerHTML (evita injeção de HTML/scripts)
+        function esc(v) {
+            return String(v ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+        }
+
+        // localStorage protegido (pode falhar em modo privado)
+        const lsGet = (k) => { try { return localStorage.getItem(k); } catch { return null; } };
+        const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+        const lsDel = (k) => { try { localStorage.removeItem(k); } catch {} };
+
         document.addEventListener('DOMContentLoaded', () => {
-            if (window.lucide) {
-                lucide.createIcons();
-            }
+            // Associa cada <label> ao seu campo (acessibilidade)
+            document.querySelectorAll('#examForm label.block').forEach(l => {
+                const c = l.parentElement.querySelector('input,select,textarea');
+                if (c && c.id) l.htmlFor = c.id;
+            });
+            // Fechar modal com Esc ou clicando fora
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') closeApiKeyModal(); });
+            $('apiKeyModal').addEventListener('click', e => { if (e.target === $('apiKeyModal')) closeApiKeyModal(); });
+            icons();
             updateApiKeyUI();
         });
 
         function getActiveApiKey() {
-            const userKey = localStorage.getItem(API_KEY_STORAGE) || window.tempApiKey;
-            // Return user key or fallback to empty string (which uses standard runtime proxy handling)
-            return (userKey && userKey.trim() !== "") ? userKey.trim() : "";
+            return (lsGet(API_KEY_STORAGE) || window.tempApiKey || '').trim();
         }
 
         function openApiKeyModal() {
-            const modal = document.getElementById('apiKeyModal');
-            const input = document.getElementById('apiKeyInput');
-            input.value = getActiveApiKey();
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
+            $('apiKeyInput').value = getActiveApiKey();
+            $('saveKeyCheckbox').checked = !(window.tempApiKey && !lsGet(API_KEY_STORAGE));
+            $('apiKeyModal').classList.remove('hidden');
+            $('apiKeyModal').classList.add('flex');
             hideModalAlert();
         }
 
         function closeApiKeyModal() {
-            const modal = document.getElementById('apiKeyModal');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
+            $('apiKeyModal').classList.add('hidden');
+            $('apiKeyModal').classList.remove('flex');
         }
 
         function toggleApiKeyVisibility() {
-            const input = document.getElementById('apiKeyInput');
-            input.type = input.type === 'password' ? 'text' : 'password';
+            const i = $('apiKeyInput');
+            i.type = i.type === 'password' ? 'text' : 'password';
         }
 
         function saveApiKeyFromModal() {
-            const key = document.getElementById('apiKeyInput').value.trim();
-            const remember = document.getElementById('saveKeyCheckbox').checked;
-
-            if (remember) {
-                if (key) {
-                    localStorage.setItem(API_KEY_STORAGE, key);
-                } else {
-                    localStorage.removeItem(API_KEY_STORAGE);
-                }
+            const key = $('apiKeyInput').value.trim();
+            if ($('saveKeyCheckbox').checked) {
+                delete window.tempApiKey;
+                key ? lsSet(API_KEY_STORAGE, key) : lsDel(API_KEY_STORAGE);
             } else {
-                localStorage.removeItem(API_KEY_STORAGE);
+                lsDel(API_KEY_STORAGE);
                 window.tempApiKey = key;
             }
-
             updateApiKeyUI();
             closeApiKeyModal();
         }
 
         function resetApiKey() {
-            localStorage.removeItem(API_KEY_STORAGE);
+            lsDel(API_KEY_STORAGE);
             delete window.tempApiKey;
-            document.getElementById('apiKeyInput').value = '';
+            $('apiKeyInput').value = '';
             updateApiKeyUI();
-            showModalAlert('Chave removida. O sistema usará a chave de runtime.', 'success');
+            showModalAlert('Chave removida. Informe uma nova chave para gerar provas.', 'success');
         }
 
         function updateApiKeyUI() {
-            const key = getActiveApiKey();
-            const btnText = document.getElementById('apiKeyBtnText');
-            const btnIcon = document.getElementById('apiKeyIcon');
-
-            if (key) {
-                btnText.innerText = "Chave Personalizada";
-            } else {
-                btnText.innerText = "Chave Padrão Ativa";
-            }
-            if (window.lucide) lucide.createIcons();
+            $('apiKeyBtnText').innerText = getActiveApiKey() ? 'Chave Configurada' : 'Configurar Chave API';
         }
 
         function showModalAlert(message, type = 'error') {
-            const alert = document.getElementById('modalAlert');
-            alert.innerText = message;
-            alert.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-emerald-50', 'text-emerald-600');
-            
-            if (type === 'error') {
-                alert.classList.add('bg-red-50', 'text-red-600', 'border', 'border-red-200');
-            } else {
-                alert.classList.add('bg-emerald-50', 'text-emerald-600', 'border', 'border-emerald-200');
-            }
+            const a = $('modalAlert');
+            a.innerText = message;
+            a.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-emerald-50', 'text-emerald-600');
+            a.classList.add(...(type === 'error'
+                ? ['bg-red-50', 'text-red-600', 'border', 'border-red-200']
+                : ['bg-emerald-50', 'text-emerald-600', 'border', 'border-emerald-200']));
         }
 
-        function hideModalAlert() {
-            document.getElementById('modalAlert').classList.add('hidden');
-        }
+        function hideModalAlert() { $('modalAlert').classList.add('hidden'); }
 
-        /**
-         * Clean text output from markdown block wrappers if present
-         */
         function cleanAndParseJSON(rawText) {
-            if (!rawText) throw new Error("A API retornou uma resposta vazia.");
-            
-            let text = rawText.trim();
-            // Remove Markdown block ticks if model outputs string wrap
-            if (text.startsWith("```")) {
-                text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
-            }
-
-            try {
-                return JSON.parse(text);
-            } catch (err) {
-                console.error("Erro ao fazer parse do JSON:", err, text);
-                throw new Error("Não foi possível processar a estrutura do teste. Tentando novamente...");
-            }
+            let text = (rawText || '').trim();
+            if (!text) throw new Error('A API retornou uma resposta vazia.');
+            if (text.startsWith('```')) text = text.replace(/^```(?:json)?\s*/, '').replace(/\s*```$/, '').trim();
+            try { return JSON.parse(text); }
+            catch (err) { console.error('Erro de JSON:', err, text); throw new Error('A IA devolveu a prova em formato inválido.'); }
         }
 
-        // Exam Generation Execution
-        document.getElementById('examForm').addEventListener('submit', async (e) => {
+        // Garante a estrutura mínima e ajusta a quantidade de questões
+        function validateExam(data, wanted) {
+            if (!data || !Array.isArray(data.questoes) || data.questoes.length === 0)
+                throw new Error('A IA não retornou nenhuma questão.');
+            data.questoes = data.questoes.filter(q => q && q.enunciado);
+            if (data.questoes.length === 0) throw new Error('As questões retornadas estão vazias.');
+            if (data.questoes.length > wanted) data.questoes = data.questoes.slice(0, wanted);
+            if (data.questoes.length < wanted)
+                data._aviso = `A IA gerou ${data.questoes.length} de ${wanted} questões solicitadas. Gere novamente se quiser a quantidade completa.`;
+            return data;
+        }
+
+        // Estados do contêiner (placeholder/carregando/erro x prova pronta)
+        const CENTER = ['flex', 'flex-col', 'justify-center', 'items-center', 'text-slate-400'];
+        function setContainerMode(isDoc) {
+            const c = $('outputContainer');
+            isDoc ? c.classList.remove(...CENTER) : c.classList.add(...CENTER);
+        }
+        function setPrintEnabled(on) {
+            const b = $('printBtn');
+            b.disabled = !on;
+            b.classList.toggle('opacity-50', !on);
+            b.classList.toggle('cursor-not-allowed', !on);
+        }
+
+        $('examForm').addEventListener('submit', async (e) => {
             e.preventDefault();
+            if ($('generateBtn').disabled) return;
 
             const apiKey = getActiveApiKey();
+            if (!apiKey) {
+                openApiKeyModal();
+                showModalAlert('Informe sua chave da API do Gemini para gerar a prova.');
+                return;
+            }
+
             const params = {
-                subject: document.getElementById('subject').value,
-                grade: document.getElementById('grade').value,
-                topics: document.getElementById('topics').value,
-                numQuestions: document.getElementById('numQuestions').value,
-                totalPoints: document.getElementById('totalPoints').value,
-                questionType: document.getElementById('questionType').value,
-                teacher: document.getElementById('teacher').value,
-                classGroup: document.getElementById('classGroup').value,
-                includeAnswerCard: document.getElementById('includeAnswerCard').checked,
-                includeGabarito: document.getElementById('includeGabarito').checked,
-                includeSvgIllustrations: document.getElementById('includeSvgIllustrations').checked
+                subject: $('subject').value,
+                grade: $('grade').value,
+                topics: $('topics').value.trim(),
+                numQuestions: Math.min(20, Math.max(1, parseInt($('numQuestions').value, 10) || 5)),
+                totalPoints: $('totalPoints').value,
+                questionType: $('questionType').value,
+                teacher: $('teacher').value,
+                classGroup: $('classGroup').value,
+                includeAnswerCard: $('includeAnswerCard').checked,
+                includeGabarito: $('includeGabarito').checked,
+                includeSvgIllustrations: $('includeSvgIllustrations').checked
             };
 
-            const outputContainer = document.getElementById('outputContainer');
-            const printBtn = document.getElementById('printBtn');
+            const out = $('outputContainer');
+            const genBtn = $('generateBtn');
+            genBtn.disabled = true;
+            genBtn.classList.add('opacity-60', 'cursor-wait');
+            setPrintEnabled(false);
+            setContainerMode(false);
 
-            outputContainer.innerHTML = `
+            out.innerHTML = `
                 <div class="text-center space-y-4 no-print py-12">
                     <div class="inline-block p-4 bg-indigo-50 text-indigo-600 rounded-full animate-spin">
-                        <i data-lucide="loader-2" class="w-8 h-8"></i>
+                        <i data-lucide="loader-circle" class="w-8 h-8"></i>
                     </div>
                     <h3 class="text-lg font-bold text-slate-800">Elaborando Prova Personalizada...</h3>
-                    <p class="text-sm text-slate-500 max-w-sm mx-auto">A Inteligência Artificial está preparando as questões de ${params.subject} para ${params.grade}.</p>
-                </div>
-            `;
-            if (window.lucide) lucide.createIcons();
+                    <p class="text-sm text-slate-500 max-w-sm mx-auto">A Inteligência Artificial está preparando as questões de ${esc(params.subject)} para ${esc(params.grade)}.</p>
+                </div>`;
+            icons();
 
             try {
                 const examData = await generateExamWithFallback(apiKey, params);
+                setContainerMode(true);
                 renderExamDocument(examData, params);
-
-                printBtn.disabled = false;
-                printBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+                setPrintEnabled(true);
             } catch (error) {
                 console.error(error);
-                outputContainer.innerHTML = `
+                setContainerMode(false);
+                out.innerHTML = `
                     <div class="text-center space-y-3 no-print py-8 text-red-500">
                         <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600">
-                            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                            <i data-lucide="triangle-alert" class="w-6 h-6"></i>
                         </div>
                         <h3 class="text-lg font-bold">Falha ao Gerar Prova</h3>
-                        <p class="text-sm max-w-md mx-auto text-slate-600">${error.message || 'Ocorreu um erro ao comunicar com a API. Verifique a sua conexão ou chave de API.'}</p>
+                        <p class="text-sm max-w-md mx-auto text-slate-600">${esc(error.message || 'Ocorreu um erro ao comunicar com a API. Verifique a sua conexão ou chave de API.')}</p>
                         <button onclick="openApiKeyModal()" class="mt-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-xl text-xs hover:bg-indigo-700">
                             Verificar / Trocar Chave API
                         </button>
-                    </div>
-                `;
-                if (window.lucide) lucide.createIcons();
+                    </div>`;
+                icons();
+            } finally {
+                genBtn.disabled = false;
+                genBtn.classList.remove('opacity-60', 'cursor-wait');
             }
         });
 
+        // Chamada única à API; devolve o texto da resposta ou lança erro com .status
+        async function callGemini(model, apiKey, payload) {
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+            const response = await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok) {
+                const j = await response.json().catch(() => ({}));
+                const err = new Error(j.error?.message || `Erro HTTP ${response.status}`);
+                err.status = response.status;
+                throw err;
+            }
+            const result = await response.json();
+            const cand = result.candidates?.[0];
+            const text = (cand?.content?.parts || []).map(p => p.text || '').join('');
+            if (!text) {
+                const motivo = cand?.finishReason || result.promptFeedback?.blockReason || 'desconhecido';
+                throw new Error(`A API não retornou conteúdo (motivo: ${motivo}).`);
+            }
+            return text;
+        }
+
         /**
-         * Call Gemini API with Fallback Models and Exponential Backoff
+         * Gemini com modelos de reserva. Só repete em erros temporários (rede, 429, 5xx, JSON inválido).
+         * Chave inválida interrompe na hora; 400/404 passam direto ao próximo modelo.
          */
         async function generateExamWithFallback(apiKey, params) {
-            // Priority model list with fallback strategy
-            const models = [
-                'gemini-3-flash-preview',
-                'gemini-2.5-flash',
-                'gemini-1.5-flash'
-            ];
+            const models = ['gemini-3-flash-preview', 'gemini-2.5-flash', 'gemini-flash-latest'];
 
-            const systemInstruction = "Você é um pedagogo especialista em elaborar avaliações escolares brasileiras alinhadas com as diretrizes da BNCC. Forneça o conteúdo estritamente em formato JSON válido.";
+            const systemInstruction = 'Você é um pedagogo especialista em elaborar avaliações escolares brasileiras alinhadas com as diretrizes da BNCC. Forneça o conteúdo estritamente em formato JSON válido.';
 
             const prompt = `Elabore uma avaliação de ${params.subject} para a série/ano: ${params.grade}.
-            - Quantidade de questões: ${params.numQuestions}
+            - Quantidade de questões: exatamente ${params.numQuestions}
+            - Valor total da prova: ${params.totalPoints} pontos (distribuídos igualmente)
             - Estilo de questões: ${params.questionType}
             - Tópicos solicitados: ${params.topics || 'Geral do programa escolar'}
-            ${params.includeSvgIllustrations ? '- Inclua uma propriedade "svgIllustration" com código de ícone/ilustração SVG inline simples e limpo (max 150px) para até 2 questões onde ajude no raciocínio.' : ''}
+            ${params.includeSvgIllustrations ? '- Inclua uma propriedade "svgIllustration" com código de ícone/ilustração SVG inline simples e limpo (com atributo viewBox e xmlns, max 150px) para até 2 questões onde ajude no raciocínio.' : ''}
 
             Siga as regras:
             1. Linguagem e vocabulário totalmente adequados à faixa etária de ${params.grade}.
-            2. Questões de múltipla escolha devem conter exatamente 4 ou 5 opções (A, B, C, D, E).
+            2. Questões de múltipla escolha devem conter exatamente 4 ou 5 opções, SEM prefixo de letra no texto (a letra é adicionada pelo sistema).
             3. Questões dissertativas/abertas não devem ter opções.
             4. Sempre forneça o gabarito detalhado com a justificativa pedagógica.`;
 
             const jsonSchema = {
-                type: "OBJECT",
+                type: 'OBJECT',
                 properties: {
-                    titulo: { type: "STRING" },
-                    instrucoes: {
-                        type: "ARRAY",
-                        items: { type: "STRING" }
-                    },
+                    titulo: { type: 'STRING' },
+                    instrucoes: { type: 'ARRAY', items: { type: 'STRING' } },
                     questoes: {
-                        type: "ARRAY",
+                        type: 'ARRAY',
                         items: {
-                            type: "OBJECT",
+                            type: 'OBJECT',
                             properties: {
-                                numero: { type: "INTEGER" },
-                                enunciado: { type: "STRING" },
-                                tipo: { type: "STRING" },
-                                opcoes: {
-                                    type: "ARRAY",
-                                    items: { type: "STRING" }
-                                },
-                                svgIllustration: { type: "STRING" },
-                                respostaCorreta: { type: "STRING" },
-                                explicacaoGabarito: { type: "STRING" }
+                                numero: { type: 'INTEGER' },
+                                enunciado: { type: 'STRING' },
+                                tipo: { type: 'STRING' },
+                                opcoes: { type: 'ARRAY', items: { type: 'STRING' } },
+                                svgIllustration: { type: 'STRING' },
+                                respostaCorreta: { type: 'STRING' },
+                                explicacaoGabarito: { type: 'STRING' }
                             },
-                            required: ["numero", "enunciado", "tipo", "respostaCorreta"]
+                            required: ['numero', 'enunciado', 'tipo', 'respostaCorreta']
                         }
                     }
                 },
-                required: ["titulo", "instrucoes", "questoes"]
+                required: ['titulo', 'instrucoes', 'questoes']
             };
 
-            let lastError = null;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemInstruction }] },
+                generationConfig: {
+                    responseMimeType: 'application/json',
+                    responseSchema: jsonSchema,
+                    maxOutputTokens: 16384
+                }
+            };
+
+            let lastError = null;   // último erro qualquer
+            let bestError = null;   // último erro que não seja "modelo não encontrado"
 
             for (const model of models) {
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
-
-                const payload = {
-                    contents: [{ parts: [{ text: prompt }] }],
-                    systemInstruction: { parts: [{ text: systemInstruction }] },
-                    generationConfig: {
-                        responseMimeType: "application/json",
-                        responseSchema: jsonSchema
-                    }
-                };
-
-                // Retry logic with exponential backoff for each model
                 for (let attempt = 0; attempt < 3; attempt++) {
                     try {
-                        const response = await fetch(apiUrl, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(payload)
-                        });
-
-                        if (!response.ok) {
-                            const errorJson = await response.json().catch(() => ({}));
-                            throw new Error(errorJson.error?.message || `Erro HTTP ${response.status}`);
-                        }
-
-                        const result = await response.json();
-                        const candidateText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-
-                        if (candidateText) {
-                            return cleanAndParseJSON(candidateText);
-                        }
+                        const text = await callGemini(model, apiKey, payload);
+                        return validateExam(cleanAndParseJSON(text), params.numQuestions);
                     } catch (err) {
                         lastError = err;
-                        // Exponential delay backoff
-                        await new Promise(res => setTimeout(res, 1000 * Math.pow(2, attempt)));
+                        if (err.status !== 404) bestError = err;
+
+                        const keyProblem = err.status === 401 || err.status === 403 ||
+                            (err.status === 400 && /api key/i.test(err.message));
+                        if (keyProblem) throw new Error('Chave de API inválida ou sem permissão. Verifique a chave configurada.');
+
+                        if (err.status === 400 || err.status === 404) break; // próximo modelo
+                        if (attempt < 2) await sleep(1000 * Math.pow(2, attempt));
                     }
                 }
             }
-
-            throw lastError || new Error("Não foi possível gerar a prova no momento.");
+            throw bestError || lastError || new Error('Não foi possível gerar a prova no momento.');
         }
 
+        // SVG da IA vira <img data:>: scripts e eventos dentro do SVG não executam
+        function svgToImg(svg) {
+            let s = svg.trim();
+            if (!/xmlns\s*=/.test(s.slice(0, 300))) s = s.replace('<svg', '<svg xmlns="http://www.w3.org/2000/svg"');
+            return `<img alt="Ilustração da questão" class="w-full h-auto block" src="data:image/svg+xml;charset=utf-8,${encodeURIComponent(s)}">`;
+        }
+
+        const stripLetter = (t) => String(t ?? '').replace(/^\s*\(?[A-Ea-e][\)\.\-:]\s+/, '');
+        const LETTERS = ['A', 'B', 'C', 'D', 'E'];
+        const hasOpts = (q) => Array.isArray(q.opcoes) && q.opcoes.length > 0;
+
         function renderExamDocument(data, meta) {
-            const container = document.getElementById('outputContainer');
+            const container = $('outputContainer');
             const today = new Date().toLocaleDateString('pt-BR');
+            const n = data.questoes.length;
+            const perQuestion = parseFloat(meta.totalPoints) / n;
+            const line = (cls = '') => `<span class="flex-1 border-b border-slate-800 h-4 print-border ${cls}"></span>`;
 
             let html = `
                 <div class="w-full text-slate-900 leading-relaxed font-sans">
-                    <!-- Header da Prova -->
+                    ${data._aviso ? `<div class="no-print mb-4 p-3 text-xs rounded-lg bg-amber-50 border border-amber-300 text-amber-800">${esc(data._aviso)}</div>` : ''}
                     <div class="border-2 border-slate-900 p-4 rounded-xl mb-6 print-border">
-                        <div class="flex justify-between items-center border-b-2 border-slate-900 pb-3 mb-3 print-border">
-                            <div class="space-y-1">
-                                <h1 class="text-xl font-extrabold uppercase tracking-wide">ESCOLA: _________________________________________________</h1>
-                                <p class="text-sm font-bold text-slate-800">AVALIAÇÃO DE ${meta.subject.toUpperCase()}</p>
+                        <div class="flex justify-between items-center gap-4 border-b-2 border-slate-900 pb-3 mb-3 print-border">
+                            <div class="space-y-2 flex-1 min-w-0">
+                                <div class="flex items-end gap-2">
+                                    <span class="text-base font-extrabold uppercase whitespace-nowrap">Escola:</span>
+                                    <span class="flex-1 border-b-2 border-slate-900 h-5 print-border"></span>
+                                </div>
+                                <p class="text-sm font-bold text-slate-800">AVALIAÇÃO DE ${esc(meta.subject.toUpperCase())}</p>
                             </div>
-                            <div class="text-right border-l-2 border-slate-900 pl-4 print-border">
+                            <div class="text-right border-l-2 border-slate-900 pl-4 print-border shrink-0">
                                 <span class="text-xs font-bold block">NOTA / CONCEITO</span>
-                                <div class="text-xl font-black text-slate-900 mt-1">___ / ${meta.totalPoints} pts</div>
+                                <div class="text-xl font-black text-slate-900 mt-1">___ / ${esc(meta.totalPoints)} pts</div>
                             </div>
                         </div>
 
                         <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-semibold text-slate-800">
-                            <div><strong>ALUNO(A):</strong> ________________________</div>
+                            <div class="flex items-end gap-1"><strong>ALUNO(A):</strong>${line()}</div>
                             <div><strong>DATA:</strong> ${today}</div>
-                            <div><strong>SÉRIE:</strong> ${meta.grade}</div>
-                            <div><strong>PROFESSOR(A):</strong> ${meta.teacher}</div>
-                            <div><strong>TURMA:</strong> ${meta.classGroup}</div>
-                            <div><strong>VALOR:</strong> ${meta.totalPoints} Pontos</div>
+                            <div><strong>SÉRIE:</strong> ${esc(meta.grade)}</div>
+                            <div><strong>PROFESSOR(A):</strong> ${esc(meta.teacher)}</div>
+                            <div><strong>TURMA:</strong> ${esc(meta.classGroup)}</div>
+                            <div><strong>VALOR:</strong> ${esc(meta.totalPoints)} Pontos</div>
                         </div>
                     </div>
 
-                    <!-- Título & Instruções -->
                     <div class="mb-6">
-                        <h2 class="text-lg font-extrabold text-center uppercase tracking-wide mb-3">${data.titulo || 'AVALIAÇÃO ESCOLAR'}</h2>
-                        ${data.instrucoes && data.instrucoes.length > 0 ? `
+                        <h2 class="text-lg font-extrabold text-center uppercase tracking-wide mb-3">${esc(data.titulo || 'AVALIAÇÃO ESCOLAR')}</h2>
+                        ${Array.isArray(data.instrucoes) && data.instrucoes.length > 0 ? `
                             <div class="bg-slate-50 border border-slate-300 rounded-lg p-3 text-xs text-slate-700 space-y-1 print-border">
                                 <span class="font-bold block uppercase tracking-wider text-slate-900">Orientação ao Aluno:</span>
                                 <ul class="list-disc list-inside space-y-0.5">
-                                    ${data.instrucoes.map(inst => `<li>${inst}</li>`).join('')}
+                                    ${data.instrucoes.map(i => `<li>${esc(i)}</li>`).join('')}
                                 </ul>
-                            </div>
-                        ` : ''}
+                            </div>` : ''}
                     </div>
 
-                    <!-- Questões -->
-                    <div class="space-y-6">
-            `;
+                    <div class="space-y-6">`;
 
             data.questoes.forEach((q, idx) => {
-                const questionNum = idx + 1;
                 html += `
                     <div class="avoid-break mb-5">
-                        <div class="flex items-start gap-2">
-                            <p class="font-bold text-sm text-slate-900">
-                                ${questionNum}) ${q.enunciado}
-                            </p>
-                        </div>
-                `;
+                        <p class="font-bold text-sm text-slate-900 whitespace-pre-line">${idx + 1}) ${esc(q.enunciado)} <span class="font-semibold text-slate-500 text-xs whitespace-nowrap">(${fmt(perQuestion)} pt${perQuestion === 1 ? '' : 's'})</span></p>`;
 
                 if (q.svgIllustration && q.svgIllustration.trim().startsWith('<svg')) {
                     html += `
                         <div class="my-3 flex justify-center">
-                            <div class="p-2 border border-slate-200 rounded-lg max-w-[180px] print-border">
-                                ${q.svgIllustration}
-                            </div>
-                        </div>
-                    `;
+                            <div class="p-2 border border-slate-200 rounded-lg w-full max-w-[220px] print-border">${svgToImg(q.svgIllustration)}</div>
+                        </div>`;
                 }
 
-                if (q.opcoes && q.opcoes.length > 0) {
+                if (hasOpts(q)) {
                     html += `<div class="grid grid-cols-1 gap-2 mt-2 ml-4 text-sm">`;
-                    q.opcoes.forEach(op => {
+                    q.opcoes.forEach((op, i) => {
                         html += `
-                            <div class="flex items-center gap-2">
-                                <span class="w-4 h-4 rounded-full border-2 border-slate-800 inline-block print-border flex-shrink-0"></span>
-                                <span class="text-slate-800">${op}</span>
-                            </div>
-                        `;
+                            <div class="flex items-start gap-2">
+                                <span class="w-5 h-5 rounded-full border-2 border-slate-800 print-border flex items-center justify-center text-[10px] font-bold flex-shrink-0">${LETTERS[i] || i + 1}</span>
+                                <span class="text-slate-800 whitespace-pre-line">${esc(stripLetter(op))}</span>
+                            </div>`;
                     });
                     html += `</div>`;
                 } else {
-                    html += `
-                        <div class="space-y-3 my-3 pl-2">
-                            <div class="border-b border-slate-400 w-full h-4 print-border"></div>
-                            <div class="border-b border-slate-400 w-full h-4 print-border"></div>
-                            <div class="border-b border-slate-400 w-full h-4 print-border"></div>
-                            <div class="border-b border-slate-400 w-full h-4 print-border"></div>
-                        </div>
-                    `;
+                    html += `<div class="space-y-3 my-3 pl-2">${'<div class="border-b border-slate-400 w-full h-4 print-border"></div>'.repeat(4)}</div>`;
                 }
-
                 html += `</div>`;
             });
 
             html += `</div>`;
 
-            // Cartão Resposta
-            const hasMultipleChoice = data.questoes.some(q => q.opcoes && q.opcoes.length > 0);
-            if (meta.includeAnswerCard && hasMultipleChoice) {
+            // Cartão Resposta (letras conforme o nº de opções de cada questão)
+            if (meta.includeAnswerCard && data.questoes.some(hasOpts)) {
                 html += `
                     <div class="mt-8 pt-6 border-t-2 border-dashed border-slate-400 avoid-break print-border">
                         <div class="border-2 border-slate-900 p-4 rounded-xl print-border">
                             <h3 class="text-xs font-black text-center uppercase tracking-wider mb-3">Cartão Resposta (Gabarito do Aluno)</h3>
-                            <div class="grid grid-cols-5 sm:grid-cols-10 gap-2 text-center text-xs">
-                `;
-
+                            <div class="grid grid-cols-5 sm:grid-cols-10 gap-2 text-center text-xs">`;
                 data.questoes.forEach((q, idx) => {
-                    const qNum = idx + 1;
-                    if (q.opcoes && q.opcoes.length > 0) {
-                        html += `
-                            <div class="border border-slate-400 rounded p-1 bg-slate-50 print-border">
-                                <span class="font-bold block border-b border-slate-300 mb-1 pb-0.5">${qNum}</span>
-                                <div class="flex justify-center gap-1 font-mono text-[10px]">
-                                    <span>A</span><span>B</span><span>C</span><span>D</span>
-                                </div>
-                            </div>
-                        `;
-                    }
+                    if (!hasOpts(q)) return;
+                    const letters = LETTERS.slice(0, Math.min(5, q.opcoes.length));
+                    html += `
+                        <div class="border border-slate-400 rounded p-1 bg-slate-50 print-border">
+                            <span class="font-bold block border-b border-slate-300 mb-1 pb-0.5">${idx + 1}</span>
+                            <div class="flex justify-center gap-1 font-mono text-[10px]">${letters.map(l => `<span>${l}</span>`).join('')}</div>
+                        </div>`;
                 });
-
-                html += `
-                            </div>
-                        </div>
-                    </div>
-                `;
+                html += `</div></div></div>`;
             }
 
-            // Gabarito Comentado
+            // Gabarito comentado
             if (meta.includeGabarito) {
                 html += `
                     <div class="page-break mt-12 pt-6 border-t-2 border-slate-900 print-border">
                         <div class="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 mb-4 print-border">
                             <h3 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wide flex items-center gap-2">
-                                <i data-lucide="check-square" class="w-4 h-4 text-indigo-600 no-print"></i>
+                                <i data-lucide="square-check" class="w-4 h-4 text-indigo-600 no-print"></i>
                                 Gabarito Comentado & Chave de Correção (Uso Exclusivo do Professor)
                             </h3>
                         </div>
-
-                        <div class="space-y-3 text-xs">
-                `;
-
+                        <div class="space-y-3 text-xs">`;
                 data.questoes.forEach((q, idx) => {
-                    const qNum = idx + 1;
                     html += `
                         <div class="p-3 bg-slate-50 rounded-lg border border-slate-300 print-border avoid-break">
-                            <p class="font-bold text-slate-900">Questão ${qNum}: <span class="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-mono ml-1">${q.respostaCorreta}</span></p>
-                            ${q.explicacaoGabarito ? `<p class="text-slate-600 mt-1 italic"><strong>Comentário Pedagógico:</strong> ${q.explicacaoGabarito}</p>` : ''}
-                        </div>
-                    `;
+                            <p class="font-bold text-slate-900">Questão ${idx + 1}: <span class="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-mono ml-1">${esc(q.respostaCorreta)}</span></p>
+                            ${q.explicacaoGabarito ? `<p class="text-slate-600 mt-1 italic whitespace-pre-line"><strong>Comentário Pedagógico:</strong> ${esc(q.explicacaoGabarito)}</p>` : ''}
+                        </div>`;
                 });
-
-                html += `
-                        </div>
-                    </div>
-                `;
+                html += `</div></div>`;
             }
 
             html += `</div>`;
-
             container.innerHTML = html;
-            if (window.lucide) lucide.createIcons();
+            icons();
         }
     </script>
 </body>
