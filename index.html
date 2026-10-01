@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ESCOLINHA DO PAPAI - Gerador de Provas com IA</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@400;600;700;800&display=swap" rel="stylesheet">
+    
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc;
+        }
+        h1, h2, h3, .font-heading {
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* Print optimizations for A4 format */
+        @media print {
+            @page {
+                size: A4;
+                margin: 12mm 15mm 12mm 15mm;
+            }
+            body {
+                background-color: white !important;
+                color: black !important;
+                font-size: 12pt;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .print-only {
+                display: block !important;
+            }
+            .page-break {
+                page-break-before: always;
+                break-before: page;
+            }
+            .avoid-break {
+                page-break-inside: avoid;
+                break-inside: avoid;
+            }
+            .print-container {
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                border: none !important;
+                background: transparent !important;
+            }
+            .print-border {
+                border-color: #000 !important;
+            }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen flex flex-col text-slate-800">
+
+    <!-- Navbar / Header -->
+    <header class="bg-indigo-600 text-white shadow-lg no-print">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-wrap justify-between items-center gap-4">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-indigo-500 rounded-2xl shadow-inner flex items-center justify-center">
+                    <i data-lucide="graduation-cap" class="w-8 h-8 text-yellow-300"></i>
+                </div>
+                <div>
+                    <h1 class="text-2xl font-extrabold tracking-tight">ESCOLINHA DO PAPAI</h1>
+                    <p class="text-xs text-indigo-200">Gerador Inteligente de Provas & Atividades com IA</p>
+                </div>
+            </div>
+
+            <!-- Key Settings Button -->
+            <button onclick="openApiKeyModal()" id="apiKeyBtn" class="flex items-center gap-2 px-4 py-2 bg-indigo-700 hover:bg-indigo-800 text-white font-medium rounded-xl border border-indigo-500/50 transition-all shadow-sm text-sm">
+                <i data-lucide="key" class="w-4 h-4 text-yellow-300" id="apiKeyIcon"></i>
+                <span id="apiKeyBtnText">Configurar Chave API</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 flex-grow w-full">
+        <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- Sidebar / Form Control -->
+            <div class="lg:col-span-4 no-print space-y-6">
+                <div class="bg-white p-6 rounded-2xl shadow-md border border-slate-200">
+                    <div class="flex items-center justify-between border-b border-slate-100 pb-4 mb-5">
+                        <h2 class="text-lg font-bold text-slate-800 flex items-center gap-2">
+                            <i data-lucide="sliders" class="w-5 h-5 text-indigo-600"></i>
+                            Parâmetros da Prova
+                        </h2>
+                        <span class="text-xs bg-indigo-100 text-indigo-700 font-bold px-2.5 py-1 rounded-full">Passo 1</span>
+                    </div>
+
+                    <form id="examForm" class="space-y-4">
+                        <!-- Disciplina -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Matéria / Disciplina</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                    <i data-lucide="book-open" class="w-4 h-4"></i>
+                                </span>
+                                <select id="subject" required class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition appearance-none">
+                                    <option value="" disabled selected>Selecione a disciplina...</option>
+                                    <option value="Matemática">Matemática</option>
+                                    <option value="Língua Portuguesa">Língua Portuguesa</option>
+                                    <option value="História">História</option>
+                                    <option value="Geografia">Geografia</option>
+                                    <option value="Ciências">Ciências</option>
+                                    <option value="Biologia">Biologia</option>
+                                    <option value="Física">Física</option>
+                                    <option value="Química">Química</option>
+                                    <option value="Filosofia">Filosofia</option>
+                                    <option value="Sociologia">Sociologia</option>
+                                    <option value="Inglês">Inglês</option>
+                                    <option value="Espanhol">Espanhol</option>
+                                    <option value="Arte">Arte</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Ano / Série -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Ano / Série Escolar</label>
+                            <div class="relative">
+                                <span class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none text-slate-400">
+                                    <i data-lucide="school" class="w-4 h-4"></i>
+                                </span>
+                                <select id="grade" required class="w-full pl-10 pr-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition appearance-none">
+                                    <option value="" disabled selected>Selecione a série...</option>
+                                    <optgroup label="Educação Infantil">
+                                        <option value="Pré-escola (4-5 anos)">Pré-escola</option>
+                                    </optgroup>
+                                    <optgroup label="Ensino Fundamental I">
+                                        <option value="1º Ano do Ensino Fundamental">1º Ano</option>
+                                        <option value="2º Ano do Ensino Fundamental">2º Ano</option>
+                                        <option value="3º Ano do Ensino Fundamental">3º Ano</option>
+                                        <option value="4º Ano do Ensino Fundamental">4º Ano</option>
+                                        <option value="5º Ano do Ensino Fundamental">5º Ano</option>
+                                    </optgroup>
+                                    <optgroup label="Ensino Fundamental II">
+                                        <option value="6º Ano do Ensino Fundamental">6º Ano</option>
+                                        <option value="7º Ano do Ensino Fundamental">7º Ano</option>
+                                        <option value="8º Ano do Ensino Fundamental">8º Ano</option>
+                                        <option value="9º Ano do Ensino Fundamental">9º Ano</option>
+                                    </optgroup>
+                                    <optgroup label="Ensino Médio">
+                                        <option value="1º Ano do Ensino Médio">1º Ano Médio</option>
+                                        <option value="2º Ano do Ensino Médio">2º Ano Médio</option>
+                                        <option value="3º Ano do Ensino Médio">3º Ano Médio</option>
+                                    </optgroup>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Tópicos Específicos -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Conteúdo / Tópicos (Opcional)</label>
+                            <textarea id="topics" rows="2" placeholder="Ex: Equações de 2º Grau, Revolução Francesa, Fotossíntese..." 
+                                class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition"></textarea>
+                        </div>
+
+                        <!-- Quantidade e Valor -->
+                        <div class="grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Nº de Questões</label>
+                                <input type="number" id="numQuestions" min="1" max="20" value="5" required
+                                    class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition text-center font-bold text-slate-700">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Valor Total (Pts)</label>
+                                <input type="number" id="totalPoints" min="1" max="100" value="10" step="0.5" required
+                                    class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition text-center font-bold text-indigo-600">
+                            </div>
+                        </div>
+
+                        <!-- Tipo de Questões -->
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Estilo das Questões</label>
+                            <select id="questionType" class="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition">
+                                <option value="múltipla escolha (A, B, C, D, E)">Múltipla Escolha (com Cartão Resposta)</option>
+                                <option value="dissertativas (com linhas para resposta)">Dissertativas / Abertas</option>
+                                <option value="mistas (metade múltipla escolha e metade dissertativa)">Mistas (Múltipla Escolha + Abertas)</option>
+                            </select>
+                        </div>
+
+                        <!-- Dados do Cabeçalho -->
+                        <div class="pt-3 border-t border-slate-100 grid grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Nome do Professor</label>
+                                <input type="text" id="teacher" placeholder="Prof. Silva" value="Prof. Papai" required
+                                    class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-semibold text-slate-600 uppercase tracking-wider mb-1">Turma / Período</label>
+                                <input type="text" id="classGroup" placeholder="Ex: Turma A - Matutino" value="Turma 101" required
+                                    class="w-full px-3 py-2 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none transition">
+                            </div>
+                        </div>
+
+                        <!-- Opções adicionais -->
+                        <div class="space-y-2 pt-2">
+                            <label class="inline-flex items-center text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" id="includeAnswerCard" checked class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                                <span class="ml-2">Incluir Cartão Resposta (Múltipla Escolha)</span>
+                            </label>
+                            <label class="inline-flex items-center text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" id="includeGabarito" checked class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                                <span class="ml-2">Incluir Gabarito Comentado no final</span>
+                            </label>
+                            <label class="inline-flex items-center text-xs font-medium text-slate-700 cursor-pointer">
+                                <input type="checkbox" id="includeSvgIllustrations" checked class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                                <span class="ml-2">Solicitar ilustrações explicativas (SVG)</span>
+                            </label>
+                        </div>
+
+                        <button type="submit" id="generateBtn" 
+                            class="w-full mt-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-lg hover:shadow-indigo-500/25 transition-all flex items-center justify-center gap-2">
+                            <i data-lucide="sparkles" class="w-5 h-5 text-yellow-300"></i>
+                            <span>Gerar Prova Completa</span>
+                        </button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Preview / Output Section -->
+            <div class="lg:col-span-8">
+                <!-- Action Bar -->
+                <div class="no-print bg-white p-4 rounded-2xl shadow-md border border-slate-200 mb-6 flex flex-wrap items-center justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <span class="w-3 h-3 bg-emerald-500 rounded-full animate-pulse"></span>
+                        <span class="text-sm font-semibold text-slate-700">Área de Impressão e Visualização</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <button onclick="window.print()" id="printBtn" disabled class="px-4 py-2 bg-slate-800 text-white hover:bg-slate-900 rounded-xl text-sm font-semibold transition flex items-center gap-2 opacity-50 cursor-not-allowed">
+                            <i data-lucide="printer" class="w-4 h-4"></i>
+                            <span>Imprimir / Salvar PDF</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Generated Document Printable Area -->
+                <div id="outputContainer" class="bg-white p-8 md:p-12 rounded-2xl shadow-xl border border-slate-200 print-container min-h-[600px] flex flex-col justify-center items-center text-slate-400">
+                    <div class="text-center no-print space-y-3 max-w-sm">
+                        <div class="w-16 h-16 bg-indigo-50 rounded-full flex items-center justify-center mx-auto text-indigo-500">
+                            <i data-lucide="file-text" class="w-8 h-8"></i>
+                        </div>
+                        <h3 class="text-lg font-bold text-slate-700">Nenhuma Prova Gerada</h3>
+                        <p class="text-sm text-slate-500">Preencha os dados ao lado e clique em "Gerar Prova Completa" para que a Inteligência Artificial formule o teste.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Modal de Configuração de Chave API -->
+    <div id="apiKeyModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm hidden items-center justify-center p-4 z-50 transition-opacity">
+        <div class="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 sm:p-8 transform transition-all relative border border-slate-100">
+            
+            <button onclick="closeApiKeyModal()" class="absolute top-5 right-5 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition">
+                <i data-lucide="x" class="w-5 h-5"></i>
+            </button>
+
+            <div class="flex items-center space-x-3 mb-4">
+                <div class="p-3 bg-amber-100 text-amber-600 rounded-2xl">
+                    <i data-lucide="key" class="w-6 h-6"></i>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold text-slate-800">Chave API do Gemini</h3>
+                    <p class="text-xs text-slate-500">Configure sua chave de API para o Google AI</p>
+                </div>
+            </div>
+
+            <p class="text-sm text-slate-600 mb-4 leading-relaxed">
+                Insira abaixo a sua Chave API do Google Gemini. Caso não informe uma chave, a aplicação utilizará a chave embutida do ambiente.
+            </p>
+
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">Sua Chave API Gemini</label>
+                    <div class="relative">
+                        <input type="password" id="apiKeyInput" placeholder="AIzaSy..." 
+                            class="w-full pl-4 pr-10 py-3 bg-slate-50 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:bg-white outline-none font-mono">
+                        <button type="button" onclick="toggleApiKeyVisibility()" class="absolute right-3 top-3 text-slate-400 hover:text-slate-600">
+                            <i data-lucide="eye" id="toggleEyeIcon" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="flex items-center justify-between text-xs">
+                    <label class="flex items-center text-slate-700 font-medium cursor-pointer">
+                        <input type="checkbox" id="saveKeyCheckbox" checked class="rounded text-indigo-600 focus:ring-indigo-500 h-4 w-4">
+                        <span class="ml-2">Lembrar neste navegador</span>
+                    </label>
+                    <button type="button" onclick="resetApiKey()" class="text-indigo-600 hover:underline font-semibold">
+                        Limpar Chave
+                    </button>
+                </div>
+
+                <div id="modalAlert" class="hidden text-xs p-3 rounded-xl font-medium"></div>
+
+                <div class="flex gap-2 pt-2">
+                    <button type="button" onclick="saveApiKeyFromModal()" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-4 rounded-xl shadow-md transition">
+                        Salvar e Continuar
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Storage configuration
+        const API_KEY_STORAGE = 'escolinha_papai_gemini_key';
+
+        // Initialize Lucide Icons
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.lucide) {
+                lucide.createIcons();
+            }
+            updateApiKeyUI();
+        });
+
+        function getActiveApiKey() {
+            const userKey = localStorage.getItem(API_KEY_STORAGE) || window.tempApiKey;
+            // Return user key or fallback to empty string (which uses standard runtime proxy handling)
+            return (userKey && userKey.trim() !== "") ? userKey.trim() : "";
+        }
+
+        function openApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            const input = document.getElementById('apiKeyInput');
+            input.value = getActiveApiKey();
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            hideModalAlert();
+        }
+
+        function closeApiKeyModal() {
+            const modal = document.getElementById('apiKeyModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        }
+
+        function toggleApiKeyVisibility() {
+            const input = document.getElementById('apiKeyInput');
+            input.type = input.type === 'password' ? 'text' : 'password';
+        }
+
+        function saveApiKeyFromModal() {
+            const key = document.getElementById('apiKeyInput').value.trim();
+            const remember = document.getElementById('saveKeyCheckbox').checked;
+
+            if (remember) {
+                if (key) {
+                    localStorage.setItem(API_KEY_STORAGE, key);
+                } else {
+                    localStorage.removeItem(API_KEY_STORAGE);
+                }
+            } else {
+                localStorage.removeItem(API_KEY_STORAGE);
+                window.tempApiKey = key;
+            }
+
+            updateApiKeyUI();
+            closeApiKeyModal();
+        }
+
+        function resetApiKey() {
+            localStorage.removeItem(API_KEY_STORAGE);
+            delete window.tempApiKey;
+            document.getElementById('apiKeyInput').value = '';
+            updateApiKeyUI();
+            showModalAlert('Chave removida. O sistema usará a chave de runtime.', 'success');
+        }
+
+        function updateApiKeyUI() {
+            const key = getActiveApiKey();
+            const btnText = document.getElementById('apiKeyBtnText');
+            const btnIcon = document.getElementById('apiKeyIcon');
+
+            if (key) {
+                btnText.innerText = "Chave Personalizada";
+            } else {
+                btnText.innerText = "Chave Padrão Ativa";
+            }
+            if (window.lucide) lucide.createIcons();
+        }
+
+        function showModalAlert(message, type = 'error') {
+            const alert = document.getElementById('modalAlert');
+            alert.innerText = message;
+            alert.classList.remove('hidden', 'bg-red-50', 'text-red-600', 'bg-emerald-50', 'text-emerald-600');
+            
+            if (type === 'error') {
+                alert.classList.add('bg-red-50', 'text-red-600', 'border', 'border-red-200');
+            } else {
+                alert.classList.add('bg-emerald-50', 'text-emerald-600', 'border', 'border-emerald-200');
+            }
+        }
+
+        function hideModalAlert() {
+            document.getElementById('modalAlert').classList.add('hidden');
+        }
+
+        /**
+         * Clean text output from markdown block wrappers if present
+         */
+        function cleanAndParseJSON(rawText) {
+            if (!rawText) throw new Error("A API retornou uma resposta vazia.");
+            
+            let text = rawText.trim();
+            // Remove Markdown block ticks if model outputs string wrap
+            if (text.startsWith("```")) {
+                text = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+            }
+
+            try {
+                return JSON.parse(text);
+            } catch (err) {
+                console.error("Erro ao fazer parse do JSON:", err, text);
+                throw new Error("Não foi possível processar a estrutura do teste. Tentando novamente...");
+            }
+        }
+
+        // Exam Generation Execution
+        document.getElementById('examForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const apiKey = getActiveApiKey();
+            const params = {
+                subject: document.getElementById('subject').value,
+                grade: document.getElementById('grade').value,
+                topics: document.getElementById('topics').value,
+                numQuestions: document.getElementById('numQuestions').value,
+                totalPoints: document.getElementById('totalPoints').value,
+                questionType: document.getElementById('questionType').value,
+                teacher: document.getElementById('teacher').value,
+                classGroup: document.getElementById('classGroup').value,
+                includeAnswerCard: document.getElementById('includeAnswerCard').checked,
+                includeGabarito: document.getElementById('includeGabarito').checked,
+                includeSvgIllustrations: document.getElementById('includeSvgIllustrations').checked
+            };
+
+            const outputContainer = document.getElementById('outputContainer');
+            const printBtn = document.getElementById('printBtn');
+
+            outputContainer.innerHTML = `
+                <div class="text-center space-y-4 no-print py-12">
+                    <div class="inline-block p-4 bg-indigo-50 text-indigo-600 rounded-full animate-spin">
+                        <i data-lucide="loader-2" class="w-8 h-8"></i>
+                    </div>
+                    <h3 class="text-lg font-bold text-slate-800">Elaborando Prova Personalizada...</h3>
+                    <p class="text-sm text-slate-500 max-w-sm mx-auto">A Inteligência Artificial está preparando as questões de ${params.subject} para ${params.grade}.</p>
+                </div>
+            `;
+            if (window.lucide) lucide.createIcons();
+
+            try {
+                const examData = await generateExamWithFallback(apiKey, params);
+                renderExamDocument(examData, params);
+
+                printBtn.disabled = false;
+                printBtn.classList.remove('opacity-50', 'cursor-not-allowed');
+            } catch (error) {
+                console.error(error);
+                outputContainer.innerHTML = `
+                    <div class="text-center space-y-3 no-print py-8 text-red-500">
+                        <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto text-red-600">
+                            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                        </div>
+                        <h3 class="text-lg font-bold">Falha ao Gerar Prova</h3>
+                        <p class="text-sm max-w-md mx-auto text-slate-600">${error.message || 'Ocorreu um erro ao comunicar com a API. Verifique a sua conexão ou chave de API.'}</p>
+                        <button onclick="openApiKeyModal()" class="mt-2 px-4 py-2 bg-indigo-600 text-white font-semibold rounded-xl text-xs hover:bg-indigo-700">
+                            Verificar / Trocar Chave API
+                        </button>
+                    </div>
+                `;
+                if (window.lucide) lucide.createIcons();
+            }
+        });
+
+        /**
+         * Call Gemini API with Fallback Models and Exponential Backoff
+         */
+        async function generateExamWithFallback(apiKey, params) {
+            // Priority model list with fallback strategy
+            const models = [
+                'gemini-3-flash-preview',
+                'gemini-2.5-flash',
+                'gemini-1.5-flash'
+            ];
+
+            const systemInstruction = "Você é um pedagogo especialista em elaborar avaliações escolares brasileiras alinhadas com as diretrizes da BNCC. Forneça o conteúdo estritamente em formato JSON válido.";
+
+            const prompt = `Elabore uma avaliação de ${params.subject} para a série/ano: ${params.grade}.
+            - Quantidade de questões: ${params.numQuestions}
+            - Estilo de questões: ${params.questionType}
+            - Tópicos solicitados: ${params.topics || 'Geral do programa escolar'}
+            ${params.includeSvgIllustrations ? '- Inclua uma propriedade "svgIllustration" com código de ícone/ilustração SVG inline simples e limpo (max 150px) para até 2 questões onde ajude no raciocínio.' : ''}
+
+            Siga as regras:
+            1. Linguagem e vocabulário totalmente adequados à faixa etária de ${params.grade}.
+            2. Questões de múltipla escolha devem conter exatamente 4 ou 5 opções (A, B, C, D, E).
+            3. Questões dissertativas/abertas não devem ter opções.
+            4. Sempre forneça o gabarito detalhado com a justificativa pedagógica.`;
+
+            const jsonSchema = {
+                type: "OBJECT",
+                properties: {
+                    titulo: { type: "STRING" },
+                    instrucoes: {
+                        type: "ARRAY",
+                        items: { type: "STRING" }
+                    },
+                    questoes: {
+                        type: "ARRAY",
+                        items: {
+                            type: "OBJECT",
+                            properties: {
+                                numero: { type: "INTEGER" },
+                                enunciado: { type: "STRING" },
+                                tipo: { type: "STRING" },
+                                opcoes: {
+                                    type: "ARRAY",
+                                    items: { type: "STRING" }
+                                },
+                                svgIllustration: { type: "STRING" },
+                                respostaCorreta: { type: "STRING" },
+                                explicacaoGabarito: { type: "STRING" }
+                            },
+                            required: ["numero", "enunciado", "tipo", "respostaCorreta"]
+                        }
+                    }
+                },
+                required: ["titulo", "instrucoes", "questoes"]
+            };
+
+            let lastError = null;
+
+            for (const model of models) {
+                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+                const payload = {
+                    contents: [{ parts: [{ text: prompt }] }],
+                    systemInstruction: { parts: [{ text: systemInstruction }] },
+                    generationConfig: {
+                        responseMimeType: "application/json",
+                        responseSchema: jsonSchema
+                    }
+                };
+
+                // Retry logic with exponential backoff for each model
+                for (let attempt = 0; attempt < 3; attempt++) {
+                    try {
+                        const response = await fetch(apiUrl, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(payload)
+                        });
+
+                        if (!response.ok) {
+                            const errorJson = await response.json().catch(() => ({}));
+                            throw new Error(errorJson.error?.message || `Erro HTTP ${response.status}`);
+                        }
+
+                        const result = await response.json();
+                        const candidateText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                        if (candidateText) {
+                            return cleanAndParseJSON(candidateText);
+                        }
+                    } catch (err) {
+                        lastError = err;
+                        // Exponential delay backoff
+                        await new Promise(res => setTimeout(res, 1000 * Math.pow(2, attempt)));
+                    }
+                }
+            }
+
+            throw lastError || new Error("Não foi possível gerar a prova no momento.");
+        }
+
+        function renderExamDocument(data, meta) {
+            const container = document.getElementById('outputContainer');
+            const today = new Date().toLocaleDateString('pt-BR');
+
+            let html = `
+                <div class="w-full text-slate-900 leading-relaxed font-sans">
+                    <!-- Header da Prova -->
+                    <div class="border-2 border-slate-900 p-4 rounded-xl mb-6 print-border">
+                        <div class="flex justify-between items-center border-b-2 border-slate-900 pb-3 mb-3 print-border">
+                            <div class="space-y-1">
+                                <h1 class="text-xl font-extrabold uppercase tracking-wide">ESCOLA: _________________________________________________</h1>
+                                <p class="text-sm font-bold text-slate-800">AVALIAÇÃO DE ${meta.subject.toUpperCase()}</p>
+                            </div>
+                            <div class="text-right border-l-2 border-slate-900 pl-4 print-border">
+                                <span class="text-xs font-bold block">NOTA / CONCEITO</span>
+                                <div class="text-xl font-black text-slate-900 mt-1">___ / ${meta.totalPoints} pts</div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs font-semibold text-slate-800">
+                            <div><strong>ALUNO(A):</strong> ________________________</div>
+                            <div><strong>DATA:</strong> ${today}</div>
+                            <div><strong>SÉRIE:</strong> ${meta.grade}</div>
+                            <div><strong>PROFESSOR(A):</strong> ${meta.teacher}</div>
+                            <div><strong>TURMA:</strong> ${meta.classGroup}</div>
+                            <div><strong>VALOR:</strong> ${meta.totalPoints} Pontos</div>
+                        </div>
+                    </div>
+
+                    <!-- Título & Instruções -->
+                    <div class="mb-6">
+                        <h2 class="text-lg font-extrabold text-center uppercase tracking-wide mb-3">${data.titulo || 'AVALIAÇÃO ESCOLAR'}</h2>
+                        ${data.instrucoes && data.instrucoes.length > 0 ? `
+                            <div class="bg-slate-50 border border-slate-300 rounded-lg p-3 text-xs text-slate-700 space-y-1 print-border">
+                                <span class="font-bold block uppercase tracking-wider text-slate-900">Orientação ao Aluno:</span>
+                                <ul class="list-disc list-inside space-y-0.5">
+                                    ${data.instrucoes.map(inst => `<li>${inst}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Questões -->
+                    <div class="space-y-6">
+            `;
+
+            data.questoes.forEach((q, idx) => {
+                const questionNum = idx + 1;
+                html += `
+                    <div class="avoid-break mb-5">
+                        <div class="flex items-start gap-2">
+                            <p class="font-bold text-sm text-slate-900">
+                                ${questionNum}) ${q.enunciado}
+                            </p>
+                        </div>
+                `;
+
+                if (q.svgIllustration && q.svgIllustration.trim().startsWith('<svg')) {
+                    html += `
+                        <div class="my-3 flex justify-center">
+                            <div class="p-2 border border-slate-200 rounded-lg max-w-[180px] print-border">
+                                ${q.svgIllustration}
+                            </div>
+                        </div>
+                    `;
+                }
+
+                if (q.opcoes && q.opcoes.length > 0) {
+                    html += `<div class="grid grid-cols-1 gap-2 mt-2 ml-4 text-sm">`;
+                    q.opcoes.forEach(op => {
+                        html += `
+                            <div class="flex items-center gap-2">
+                                <span class="w-4 h-4 rounded-full border-2 border-slate-800 inline-block print-border flex-shrink-0"></span>
+                                <span class="text-slate-800">${op}</span>
+                            </div>
+                        `;
+                    });
+                    html += `</div>`;
+                } else {
+                    html += `
+                        <div class="space-y-3 my-3 pl-2">
+                            <div class="border-b border-slate-400 w-full h-4 print-border"></div>
+                            <div class="border-b border-slate-400 w-full h-4 print-border"></div>
+                            <div class="border-b border-slate-400 w-full h-4 print-border"></div>
+                            <div class="border-b border-slate-400 w-full h-4 print-border"></div>
+                        </div>
+                    `;
+                }
+
+                html += `</div>`;
+            });
+
+            html += `</div>`;
+
+            // Cartão Resposta
+            const hasMultipleChoice = data.questoes.some(q => q.opcoes && q.opcoes.length > 0);
+            if (meta.includeAnswerCard && hasMultipleChoice) {
+                html += `
+                    <div class="mt-8 pt-6 border-t-2 border-dashed border-slate-400 avoid-break print-border">
+                        <div class="border-2 border-slate-900 p-4 rounded-xl print-border">
+                            <h3 class="text-xs font-black text-center uppercase tracking-wider mb-3">Cartão Resposta (Gabarito do Aluno)</h3>
+                            <div class="grid grid-cols-5 sm:grid-cols-10 gap-2 text-center text-xs">
+                `;
+
+                data.questoes.forEach((q, idx) => {
+                    const qNum = idx + 1;
+                    if (q.opcoes && q.opcoes.length > 0) {
+                        html += `
+                            <div class="border border-slate-400 rounded p-1 bg-slate-50 print-border">
+                                <span class="font-bold block border-b border-slate-300 mb-1 pb-0.5">${qNum}</span>
+                                <div class="flex justify-center gap-1 font-mono text-[10px]">
+                                    <span>A</span><span>B</span><span>C</span><span>D</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+                });
+
+                html += `
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Gabarito Comentado
+            if (meta.includeGabarito) {
+                html += `
+                    <div class="page-break mt-12 pt-6 border-t-2 border-slate-900 print-border">
+                        <div class="bg-indigo-50 border-2 border-indigo-200 rounded-xl p-4 mb-4 print-border">
+                            <h3 class="text-sm font-extrabold text-indigo-900 uppercase tracking-wide flex items-center gap-2">
+                                <i data-lucide="check-square" class="w-4 h-4 text-indigo-600 no-print"></i>
+                                Gabarito Comentado & Chave de Correção (Uso Exclusivo do Professor)
+                            </h3>
+                        </div>
+
+                        <div class="space-y-3 text-xs">
+                `;
+
+                data.questoes.forEach((q, idx) => {
+                    const qNum = idx + 1;
+                    html += `
+                        <div class="p-3 bg-slate-50 rounded-lg border border-slate-300 print-border avoid-break">
+                            <p class="font-bold text-slate-900">Questão ${qNum}: <span class="text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded font-mono ml-1">${q.respostaCorreta}</span></p>
+                            ${q.explicacaoGabarito ? `<p class="text-slate-600 mt-1 italic"><strong>Comentário Pedagógico:</strong> ${q.explicacaoGabarito}</p>` : ''}
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                    </div>
+                `;
+            }
+
+            html += `</div>`;
+
+            container.innerHTML = html;
+            if (window.lucide) lucide.createIcons();
+        }
+    </script>
+</body>
+</html>
